@@ -1,0 +1,13 @@
+.DS_Store
+.venv/
+.ruff_cache/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+dist/
+build/
+*.egg-info/
+.env
+.env.*
+!.env.example
+lk_dump/
