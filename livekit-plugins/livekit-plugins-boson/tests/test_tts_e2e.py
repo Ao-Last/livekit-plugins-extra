@@ -4,6 +4,7 @@ import os
 import wave
 from pathlib import Path
 
+import aiohttp
 import pytest
 
 from livekit.agents import tts
@@ -52,15 +53,16 @@ def _maybe_write_wav(
 
 
 async def test_boson_synthesize_real_e2e() -> None:
-    client = boson.TTS()
-    try:
-        async with client.synthesize(
-            E2E_TEXT,
-            conn_options=APIConnectOptions(max_retry=1, timeout=20),
-        ) as stream:
-            events = [event async for event in stream]
-    finally:
-        await client.aclose()
+    async with aiohttp.ClientSession() as http_session:
+        client = boson.TTS(http_session=http_session)
+        try:
+            async with client.synthesize(
+                E2E_TEXT,
+                conn_options=APIConnectOptions(max_retry=1, timeout=20),
+            ) as stream:
+                events = [event async for event in stream]
+        finally:
+            await client.aclose()
 
     _assert_nonempty_audio(events, sample_rate=client.sample_rate)
     _maybe_write_wav(
@@ -72,17 +74,18 @@ async def test_boson_synthesize_real_e2e() -> None:
 
 
 async def test_boson_stream_real_e2e() -> None:
-    client = boson.TTS()
-    try:
-        async with client.stream(
-            conn_options=APIConnectOptions(max_retry=1, timeout=20),
-        ) as stream:
-            stream.push_text(E2E_TEXT)
-            stream.flush()
-            stream.end_input()
-            events = [event async for event in stream]
-    finally:
-        await client.aclose()
+    async with aiohttp.ClientSession() as http_session:
+        client = boson.TTS(http_session=http_session)
+        try:
+            async with client.stream(
+                conn_options=APIConnectOptions(max_retry=1, timeout=20),
+            ) as stream:
+                stream.push_text(E2E_TEXT)
+                stream.flush()
+                stream.end_input()
+                events = [event async for event in stream]
+        finally:
+            await client.aclose()
 
     _assert_nonempty_audio(events, sample_rate=client.sample_rate)
     _maybe_write_wav(
