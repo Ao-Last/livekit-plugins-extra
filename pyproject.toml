@@ -33,5 +33,6 @@ known-first-party = ["livekit"]
 asyncio_mode = "auto"
 testpaths = ["livekit-plugins"]
 markers = [
+    "e2e: real provider end-to-end tests that require credentials and network access",
     "integration: local mock-server integration tests",
 ]
