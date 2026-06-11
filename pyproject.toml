@@ -32,3 +32,6 @@ known-first-party = ["livekit"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["livekit-plugins"]
+markers = [
+    "integration: local mock-server integration tests",
+]
