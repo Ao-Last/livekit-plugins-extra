@@ -24,7 +24,7 @@ The implemented clients follow these Volcengine WebSocket APIs:
 
 - Volcengine TTS V3 bidirectional API: <https://www.volcengine.com/docs/6561/1329505>
 - Volcengine BigModel ASR WebSocket API, optimized bidirectional streaming
-  endpoint: `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async`
+  endpoint: <https://www.volcengine.com/docs/6561/1354869>
 
 The supported WebSocket request paths are:
 
@@ -32,6 +32,11 @@ The supported WebSocket request paths are:
 wss://openspeech.bytedance.com/api/v3/tts/bidirection
 wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
 ```
+
+The TTS binary protocol constants are also checked against ByteDance's
+reference helper package named `TTS Websocket Bidirection protocols`, including
+the downstream event codes for `UsageResponse` (`154`), `AudioMuted` (`250`),
+`TTSResponse` (`352`), `TTSEnded` (`359`), and `TTSSubtitle` (`364`).
 
 ## Explicitly Not Supported Yet
 
@@ -90,7 +95,9 @@ and uses the `livekit.plugins.volcengine` import namespace.
 
 Subtitle and usage payloads can be requested from Volcengine, but this LiveKit
 TTS plugin currently exposes only synthesized audio frames through the LiveKit
-TTS stream.
+TTS stream. Non-audio protocol events such as usage responses, muted-audio
+signals, sentence boundaries, subtitles, and TTS-ended markers are parsed and
+ignored for now rather than surfaced as LiveKit TTS events.
 
 ## Supported STT Features
 
