@@ -46,6 +46,21 @@ run the `e2e` workflow manually from the Actions tab; it reads `BOSON_API_KEY`
 from the repository secrets and uploads generated WAV files as the
 `boson-e2e-audio` artifact.
 
+## Publishing
+
+Packages are published to PyPI through GitHub Actions Trusted Publishing. The
+PyPI project must trust this GitHub workflow before the first publish:
+
+```text
+Owner: Ao-Last
+Repository: livekit-plugins-extra
+Workflow: publish-pypi.yml
+Environment: pypi
+```
+
+After the PyPI trusted publisher is configured, run the `publish-pypi` workflow
+manually from the GitHub Actions tab and choose the package to publish.
+
 Run formatting and linting:
 
 ```bash
