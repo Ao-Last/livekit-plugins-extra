@@ -24,6 +24,12 @@ protocol as documented at:
 
 - Volcengine TTS V3 bidirectional API: <https://www.volcengine.com/docs/6561/1329505>
 
+The support contract is the WebSocket API whose request path is:
+
+```text
+wss://openspeech.bytedance.com/api/v3/tts/bidirection
+```
+
 ## Explicitly Not Supported Yet
 
 This package does not currently implement:
@@ -43,20 +49,50 @@ and uses the `livekit.plugins.volcengine` import namespace.
 
 - Streaming synthesis through `TTS.stream()`
 - Volcengine TTS V3 connection/session/task binary protocol
-- `seed-tts-1.0` and `seed-tts-2.0` style `resource_id` values, when enabled
-  for your Volcengine account
+- `X-Api-Key` authentication for the current Volcengine console
+- Legacy console authentication through `X-Api-App-Key` and `X-Api-Access-Key`
+- `resource_id` values documented for this API:
+  - `seed-tts-2.0`
+  - `seed-icl-2.0`
+- Optional cloned-voice model selection:
+  - `seed-tts-2.0-standard`
+  - `seed-tts-2.0-expressive`
 - `speaker`
-- `audio_format`: `pcm`, `mp3`, or `ogg_opus`
+- `ssml`
+- `audio_format`: `pcm`, `mp3`, `ogg_opus`, or `wav`
 - `sample_rate`
+- `bit_rate`
 - `speech_rate`
 - `loudness_rate`
-- `emotion`
+- `enable_subtitle` request flag
+- `disable_markdown_filter`
+- `disable_emoji_filter`
+- `enable_latex_tn`
+- `latex_parser`
+- `explicit_language`
+- `explicit_dialect`
+- `aigc_watermark`
+- `aigc_metadata`
+- `cache_config`
+- `post_process`
 - TTS 2.0 `context_texts`
+- `use_tag_parser`
+- `X-Control-Require-Usage-Tokens-Return`
 - Server-side sentence splitting
 - LiveKit retry behavior for transient websocket failures before audio is
   emitted
 
+Subtitle and usage payloads can be requested from Volcengine, but this LiveKit
+TTS plugin currently exposes only synthesized audio frames through the LiveKit
+TTS stream.
+
 The plugin sends credentials with Volcengine's V3 websocket headers:
+
+- `X-Api-Key`
+- `X-Api-Resource-Id`
+- `X-Api-Connect-Id`
+
+For legacy console credentials, it sends:
 
 - `X-Api-App-Key`
 - `X-Api-Access-Key`
@@ -78,8 +114,7 @@ then pass them to the plugin explicitly:
 from livekit.plugins import bytedance
 
 tts = bytedance.TTS(
-    app_key="your-app-key",
-    access_key="your-access-key",
+    api_key="your-api-key",
     resource_id="seed-tts-2.0",
 )
 ```
@@ -91,10 +126,12 @@ itself.
 Suggested variable names:
 
 ```bash
-export VOLCENGINE_TTS_V3_APP_KEY=...
-export VOLCENGINE_TTS_V3_ACCESS_KEY=...
+export VOLCENGINE_TTS_V3_API_KEY=...
 export VOLCENGINE_TTS_V3_RESOURCE_ID=seed-tts-2.0
 ```
+
+The API also supports old-console authentication. If you still use those
+credentials, pass both `app_key` and `access_key` instead of `api_key`.
 
 ## Usage
 
@@ -104,8 +141,7 @@ Use the default TTS V3 model and speaker:
 from livekit.plugins import bytedance
 
 tts = bytedance.TTS(
-    app_key="your-app-key",
-    access_key="your-access-key",
+    api_key="your-api-key",
 )
 ```
 
@@ -113,8 +149,7 @@ Use a specific Seed TTS resource and speaker:
 
 ```python
 tts = bytedance.TTS(
-    app_key="your-app-key",
-    access_key="your-access-key",
+    api_key="your-api-key",
     resource_id="seed-tts-2.0",
     speaker="zh_female_vv_uranus_bigtts",
 )
@@ -124,8 +159,7 @@ Use TTS 2.0 style controls:
 
 ```python
 tts = bytedance.TTS(
-    app_key="your-app-key",
-    access_key="your-access-key",
+    api_key="your-api-key",
     resource_id="seed-tts-2.0",
     speaker="zh_female_vv_uranus_bigtts",
     context_texts=["自然、专业、和善，像面试官一样说话"],
@@ -140,8 +174,7 @@ Use the descriptive class name if you prefer:
 from livekit.plugins.bytedance import VolcengineV3TTS
 
 tts = VolcengineV3TTS(
-    app_key="your-app-key",
-    access_key="your-access-key",
+    api_key="your-api-key",
 )
 ```
 
@@ -161,8 +194,7 @@ behavior.
 Real end-to-end tests should use a separate marker and require:
 
 ```bash
-export VOLCENGINE_TTS_V3_APP_KEY=...
-export VOLCENGINE_TTS_V3_ACCESS_KEY=...
+export VOLCENGINE_TTS_V3_API_KEY=...
 export VOLCENGINE_TTS_V3_RESOURCE_ID=seed-tts-2.0
 ```
 

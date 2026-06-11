@@ -213,8 +213,7 @@ _AUDIO_B = bytes([0x33, 0x44]) * (_PCM_BYTES_PER_FRAME // 2)  # 1 frame
 
 def _make_tts(*, context_texts: list[str] | None = None) -> VolcengineV3TTS:
     return TTS(
-        app_key="fake-app",
-        access_key="fake-access",
+        api_key="fake-api-key",
         resource_id="seed-tts-2.0",
         context_texts=context_texts,
     )
@@ -251,6 +250,17 @@ def _extract_task_request_text(frame: bytes) -> str:
     payload_start = 12 + sid_len + 4  # skip sid + payload_len
     payload = frame[payload_start:].decode("utf-8")
     return json.loads(payload)["req_params"]["text"]
+
+
+def _extract_start_session_payload(frame: bytes) -> dict[str, Any]:
+    """Extract the JSON payload from a StartSession client frame."""
+    assert struct.unpack(">i", frame[4:8])[0] == _EVT_START_SESSION
+    sid_len = struct.unpack(">I", frame[8:12])[0]
+    payload_len_start = 12 + sid_len
+    payload_start = payload_len_start + 4
+    payload_len = struct.unpack(">I", frame[payload_len_start:payload_start])[0]
+    payload = frame[payload_start : payload_start + payload_len].decode("utf-8")
+    return json.loads(payload)
 
 
 # ---------------------------------------------------------------------------
@@ -302,6 +312,13 @@ class TestProtocolHelpers:
         assert frame.session_id == "sess-1"
         assert frame.payload == audio
 
+    def test_requires_current_or_legacy_credentials(self) -> None:
+        with pytest.raises(ValueError, match="api_key"):
+            TTS()
+
+        # Legacy console auth is still accepted as documented by Volcengine.
+        assert TTS(app_key="legacy-app", access_key="legacy-access").model == "seed-tts-2.0"
+
 
 # ---------------------------------------------------------------------------
 # _connect_ws: headers + heartbeat
@@ -326,8 +343,9 @@ async def test_connect_ws_sets_headers_without_heartbeat() -> None:
     # because nobody is actively calling ws.receive() to drain PONGs.
     assert "heartbeat" not in kwargs
     headers = kwargs["headers"]
-    assert headers["X-Api-App-Key"] == "fake-app"
-    assert headers["X-Api-Access-Key"] == "fake-access"
+    assert headers["X-Api-Key"] == "fake-api-key"
+    assert "X-Api-App-Key" not in headers
+    assert "X-Api-Access-Key" not in headers
     assert headers["X-Api-Resource-Id"] == "seed-tts-2.0"
     # Connect-Id should be populated (non-empty) and be unique per call.
     connect_id = headers["X-Api-Connect-Id"]
@@ -341,6 +359,86 @@ async def test_connect_ws_sets_headers_without_heartbeat() -> None:
     extra = tts._ws_log_extra(ws)
     assert extra["connect_id"] == connect_id
     assert extra["logid"] == "vc-log-abc"
+
+
+async def test_connect_ws_supports_legacy_console_auth_headers() -> None:
+    tts = TTS(
+        app_key="fake-app",
+        access_key="fake-access",
+        resource_id="seed-icl-2.0",
+        require_usage_tokens=True,
+    )
+    ws = FakeWebSocket()
+    ws.queue(_connection_started_frame())
+    fake_session = FakeClientSession(ws)
+    tts._session = fake_session
+
+    await tts._connect_ws(timeout=1.0)
+
+    headers = fake_session.ws_connect_calls[0][1]["headers"]
+    assert headers["X-Api-App-Key"] == "fake-app"
+    assert headers["X-Api-Access-Key"] == "fake-access"
+    assert "X-Api-Key" not in headers
+    assert headers["X-Api-Resource-Id"] == "seed-icl-2.0"
+    assert headers["X-Control-Require-Usage-Tokens-Return"] == "*"
+
+
+def test_start_session_payload_matches_bidirectional_tts_contract() -> None:
+    tts = TTS(
+        api_key="fake-api-key",
+        resource_id="seed-icl-2.0",
+        model="seed-tts-2.0-expressive",
+        speaker="S_custom_cloned_voice",
+        ssml="<speak>hello</speak>",
+        audio_format="ogg_opus",
+        sample_rate=48000,
+        bit_rate=160000,
+        speech_rate=20,
+        loudness_rate=-10,
+        enable_subtitle=True,
+        disable_markdown_filter=True,
+        disable_emoji_filter=True,
+        enable_latex_tn=True,
+        latex_parser="v2",
+        explicit_language="zh-cn",
+        explicit_dialect="zh_yueyu",
+        aigc_watermark=True,
+        aigc_metadata={"enable": True, "content_producer": "livekit"},
+        cache_config={"text_type": 0, "use_cache": True},
+        post_process={"pitch": 2},
+        context_texts=["你可以用痛心的语气说话吗?"],
+        use_tag_parser=True,
+    )
+
+    payload = tts._build_session_payload()
+
+    assert payload["namespace"] == "BidirectionalTTS"
+    req_params = payload["req_params"]
+    assert req_params["model"] == "seed-tts-2.0-expressive"
+    assert req_params["speaker"] == "S_custom_cloned_voice"
+    assert req_params["ssml"] == "<speak>hello</speak>"
+    assert req_params["audio_params"] == {
+        "format": "ogg_opus",
+        "sample_rate": 48000,
+        "bit_rate": 160000,
+        "speech_rate": 20,
+        "loudness_rate": -10,
+        "enable_subtitle": True,
+    }
+    assert json.loads(req_params["additions"]) == {
+        "disable_markdown_filter": True,
+        "disable_emoji_filter": True,
+        "enable_latex_tn": True,
+        "latex_parser": "v2",
+        "explicit_language": "zh-cn",
+        "explicit_dialect": "zh_yueyu",
+        "aigc_watermark": True,
+        "aigc_metadata": {"enable": True, "content_producer": "livekit"},
+        "cache_config": {"text_type": 0, "use_cache": True},
+        "post_process": {"pitch": 2},
+        "context_texts": ["你可以用痛心的语气说话吗?"],
+        "use_tag_parser": True,
+    }
 
 
 async def test_connect_ws_handles_missing_logid_header() -> None:

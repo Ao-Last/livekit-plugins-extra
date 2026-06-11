@@ -14,12 +14,8 @@ from livekit.plugins import bytedance
 pytestmark = [
     pytest.mark.e2e,
     pytest.mark.skipif(
-        not os.environ.get("VOLCENGINE_TTS_V3_APP_KEY")
-        or not os.environ.get("VOLCENGINE_TTS_V3_ACCESS_KEY"),
-        reason=(
-            "VOLCENGINE_TTS_V3_APP_KEY and VOLCENGINE_TTS_V3_ACCESS_KEY are "
-            "required for Volcengine TTS V3 real e2e tests"
-        ),
+        not os.environ.get("VOLCENGINE_TTS_V3_API_KEY"),
+        reason="VOLCENGINE_TTS_V3_API_KEY is required for Volcengine TTS V3 real e2e tests",
     ),
 ]
 
@@ -63,8 +59,7 @@ async def test_volcengine_tts_v3_stream_real_e2e() -> None:
 
     async with aiohttp.ClientSession() as http_session:
         client = bytedance.TTS(
-            app_key=os.environ["VOLCENGINE_TTS_V3_APP_KEY"],
-            access_key=os.environ["VOLCENGINE_TTS_V3_ACCESS_KEY"],
+            api_key=os.environ["VOLCENGINE_TTS_V3_API_KEY"],
             resource_id=resource_id,
             speaker=speaker,
             audio_format="pcm",

@@ -1,7 +1,8 @@
 """Volcengine TTS V3 bidirectional streaming API implementation.
 
 Implements the V3 protocol at wss://openspeech.bytedance.com/api/v3/tts/bidirection
-which supports TTS 2.0 features (voice instructions, context references, emotion).
+which supports TTS 2.0 features such as voice instructions, cloned-voice models,
+SSML, subtitles, and voice-tag parsing.
 
 See: https://www.volcengine.com/docs/6561/1329505
 """
@@ -15,7 +16,7 @@ import struct
 import time
 import weakref
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 import aiohttp
 
@@ -47,6 +48,7 @@ _EVT_SESSION_FAILED = 153
 _EVT_TTS_SENTENCE_START = 350
 _EVT_TTS_SENTENCE_END = 351
 _EVT_TTS_RESPONSE = 352  # audio data
+_EVT_TTS_SUBTITLE = 353
 
 # Message types (high nibble of byte 1)
 _MSG_FULL_CLIENT_REQ = 0x1
@@ -194,7 +196,10 @@ _MIME_TYPES = {
     "pcm": "audio/pcm",
     "mp3": "audio/mp3",
     "ogg_opus": "audio/ogg",
+    "wav": "audio/wav",
 }
+
+AudioFormat = Literal["pcm", "mp3", "ogg_opus", "wav"]
 
 
 class VolcengineV3TTS(tts.TTS):
@@ -207,51 +212,108 @@ class VolcengineV3TTS(tts.TTS):
     def __init__(
         self,
         *,
-        app_key: str,
-        access_key: str,
+        api_key: str | None = None,
+        app_key: str | None = None,
+        access_key: str | None = None,
         resource_id: str = "seed-tts-2.0",
+        model: str | None = None,
         speaker: str = "zh_female_shuangkuaisisi_uranus_bigtts",
         base_url: str = "wss://openspeech.bytedance.com/api/v3/tts/bidirection",
-        audio_format: Literal["pcm", "mp3", "ogg_opus"] = "pcm",
+        ssml: str | None = None,
+        audio_format: AudioFormat = "pcm",
         sample_rate: int = 24000,
+        bit_rate: int | None = None,
         speech_rate: int = 0,
         loudness_rate: int = 0,
-        emotion: str | None = None,
+        enable_subtitle: bool | None = None,
+        disable_markdown_filter: bool | None = None,
+        disable_emoji_filter: bool | None = None,
+        enable_latex_tn: bool | None = None,
+        latex_parser: str | None = None,
+        explicit_language: str | None = None,
+        explicit_dialect: str | None = None,
+        aigc_watermark: bool | None = None,
+        aigc_metadata: dict[str, Any] | None = None,
+        cache_config: dict[str, Any] | None = None,
+        post_process: dict[str, Any] | None = None,
         context_texts: list[str] | None = None,
+        use_tag_parser: bool | None = None,
+        require_usage_tokens: bool = False,
         http_session: aiohttp.ClientSession | None = None,
     ) -> None:
         """Create a Volcengine TTS V3 bidirectional streaming instance.
 
         Args:
-            app_key: Volcengine V3 app key.
-            access_key: Volcengine V3 access key.
-            resource_id: Volcengine TTS resource/model ID, for example ``seed-tts-2.0``.
+            api_key: Volcengine API key for the current console auth flow.
+            app_key: Legacy console app key. Used only when ``api_key`` is not provided.
+            access_key: Legacy console access key. Used only when ``api_key`` is not provided.
+            resource_id: Volcengine TTS resource ID, for example ``seed-tts-2.0`` or
+                ``seed-icl-2.0``.
+            model: Optional concrete model for cloned voices, for example
+                ``seed-tts-2.0-standard`` or ``seed-tts-2.0-expressive``.
             speaker: Volcengine speaker ID.
             base_url: V3 bidirectional websocket URL.
+            ssml: Optional SSML marker text.
             audio_format: Requested audio format.
             sample_rate: Output sample rate.
+            bit_rate: Optional MP3 bit rate.
             speech_rate: Volcengine speech-rate control.
             loudness_rate: Volcengine loudness control.
-            emotion: Optional emotion tag.
+            enable_subtitle: Enable word-level subtitle timestamps. Subtitle events are
+                currently ignored by the LiveKit audio stream.
+            disable_markdown_filter: Volcengine markdown parsing/filter option.
+            disable_emoji_filter: Volcengine emoji parsing/filter option.
+            enable_latex_tn: Enable LaTeX text normalization.
+            latex_parser: Optional LaTeX parser version, for example ``v2``.
+            explicit_language: Explicit spoken language, for example ``zh-cn`` or ``en``.
+            explicit_dialect: Explicit dialect for supported speakers.
+            aigc_watermark: Enable AIGC rhythm watermark.
+            aigc_metadata: Optional AIGC metadata watermark payload.
+            cache_config: Optional cache configuration payload.
+            post_process: Optional post-processing payload, for example ``{"pitch": 0}``.
             context_texts: Optional TTS 2.0 style prompt/context hints.
+            use_tag_parser: Enable voice-tag parser for supported cloned voices.
+            require_usage_tokens: Request usage token/character accounting in responses.
             http_session: Existing aiohttp session to reuse.
         """
+        if not api_key and not (app_key and access_key):
+            raise ValueError(
+                "Volcengine TTS V3 requires api_key, or both app_key and access_key "
+                "for legacy console authentication"
+            )
+
         super().__init__(
             capabilities=tts.TTSCapabilities(streaming=True),
             sample_rate=sample_rate,
             num_channels=1,
         )
+        self._api_key = api_key
         self._app_key = app_key
         self._access_key = access_key
         self._resource_id = resource_id
+        self._model = model
         self._speaker = speaker
         self._base_url = base_url
+        self._ssml = ssml
         self._format = audio_format
         self._sample_rate = sample_rate
+        self._bit_rate = bit_rate
         self._speech_rate = speech_rate
         self._loudness_rate = loudness_rate
-        self._emotion = emotion
+        self._enable_subtitle = enable_subtitle
+        self._disable_markdown_filter = disable_markdown_filter
+        self._disable_emoji_filter = disable_emoji_filter
+        self._enable_latex_tn = enable_latex_tn
+        self._latex_parser = latex_parser
+        self._explicit_language = explicit_language
+        self._explicit_dialect = explicit_dialect
+        self._aigc_watermark = aigc_watermark
+        self._aigc_metadata = aigc_metadata
+        self._cache_config = cache_config
+        self._post_process = post_process
         self._context_texts = context_texts
+        self._use_tag_parser = use_tag_parser
+        self._require_usage_tokens = require_usage_tokens
         self._session = http_session
 
         self._pool = utils.ConnectionPool[aiohttp.ClientWebSocketResponse](
@@ -303,13 +365,19 @@ class VolcengineV3TTS(tts.TTS):
         session = self._ensure_session()
         connect_id = utils.shortuuid()
         headers = {
-            "X-Api-App-Key": self._app_key,
-            "X-Api-Access-Key": self._access_key,
             "X-Api-Resource-Id": self._resource_id,
             # Per-connection trace ID — makes it possible to cross-reference our
             # logs with Volcengine server-side logs if we need to chase an issue.
             "X-Api-Connect-Id": connect_id,
         }
+        if self._api_key:
+            headers["X-Api-Key"] = self._api_key
+        else:
+            assert self._app_key is not None and self._access_key is not None
+            headers["X-Api-App-Key"] = self._app_key
+            headers["X-Api-Access-Key"] = self._access_key
+        if self._require_usage_tokens:
+            headers["X-Control-Require-Usage-Tokens-Return"] = "*"
         # Deliberately NOT passing `heartbeat=`. aiohttp's WS heartbeat closes
         # the connection itself if a PONG isn't pulled from the receive queue
         # within heartbeat/2 seconds — and the queue is only drained while
@@ -377,27 +445,51 @@ class VolcengineV3TTS(tts.TTS):
             "format": self._format,
             "sample_rate": self._sample_rate,
         }
+        if self._bit_rate is not None:
+            audio_params["bit_rate"] = self._bit_rate
         if self._speech_rate != 0:
             audio_params["speech_rate"] = self._speech_rate
         if self._loudness_rate != 0:
             audio_params["loudness_rate"] = self._loudness_rate
-        if self._emotion:
-            audio_params["emotion"] = self._emotion
+        if self._enable_subtitle is not None:
+            audio_params["enable_subtitle"] = self._enable_subtitle
 
         req_params: dict = {
             "speaker": self._speaker,
             "audio_params": audio_params,
         }
+        if self._model:
+            req_params["model"] = self._model
+        if self._ssml:
+            req_params["ssml"] = self._ssml
 
-        additions: dict = {
-            "disable_markdown_filter": True,
-            "enable_language_detector": True,
-            "enable_latex_tn": True,
-            "latex_parser": "v2",
-        }
+        additions: dict[str, Any] = {}
+        if self._disable_markdown_filter is not None:
+            additions["disable_markdown_filter"] = self._disable_markdown_filter
+        if self._disable_emoji_filter is not None:
+            additions["disable_emoji_filter"] = self._disable_emoji_filter
+        if self._enable_latex_tn is not None:
+            additions["enable_latex_tn"] = self._enable_latex_tn
+        if self._latex_parser:
+            additions["latex_parser"] = self._latex_parser
+        if self._explicit_language:
+            additions["explicit_language"] = self._explicit_language
+        if self._explicit_dialect:
+            additions["explicit_dialect"] = self._explicit_dialect
+        if self._aigc_watermark is not None:
+            additions["aigc_watermark"] = self._aigc_watermark
+        if self._aigc_metadata:
+            additions["aigc_metadata"] = self._aigc_metadata
+        if self._cache_config:
+            additions["cache_config"] = self._cache_config
+        if self._post_process:
+            additions["post_process"] = self._post_process
         if self._context_texts:
             additions["context_texts"] = self._context_texts
-        req_params["additions"] = json.dumps(additions)
+        if self._use_tag_parser is not None:
+            additions["use_tag_parser"] = self._use_tag_parser
+        if additions:
+            req_params["additions"] = json.dumps(additions, ensure_ascii=False)
 
         payload: dict = {
             "user": {"uid": utils.shortuuid()},

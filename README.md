@@ -27,7 +27,8 @@ The ByteDance plugin currently targets only Volcengine's TTS V3 bidirectional
 streaming websocket endpoint at
 `wss://openspeech.bytedance.com/api/v3/tts/bidirection`. It does not yet
 implement Volcengine legacy TTS, STT, BigModelSTT, LLM, realtime dialogue, or
-other ByteDance AI APIs.
+other ByteDance AI APIs. The supported resource IDs follow Volcengine's
+documented bidirectional TTS contract: `seed-tts-2.0` and `seed-icl-2.0`.
 
 ## Quick Start
 
@@ -63,8 +64,7 @@ Use Volcengine TTS V3 from a LiveKit Agents app:
 from livekit.plugins import bytedance
 
 tts = bytedance.TTS(
-    app_key="your-volcengine-app-key",
-    access_key="your-volcengine-access-key",
+    api_key="your-volcengine-api-key",
     resource_id="seed-tts-2.0",
 )
 ```
@@ -145,8 +145,7 @@ uv run pytest -m e2e
 Run real Volcengine TTS V3 end-to-end tests after adding the test credentials:
 
 ```bash
-export VOLCENGINE_TTS_V3_APP_KEY=...
-export VOLCENGINE_TTS_V3_ACCESS_KEY=...
+export VOLCENGINE_TTS_V3_API_KEY=...
 export VOLCENGINE_TTS_V3_RESOURCE_ID=seed-tts-2.0
 uv run pytest -m e2e
 ```
