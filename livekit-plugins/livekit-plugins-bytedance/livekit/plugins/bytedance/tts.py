@@ -45,10 +45,13 @@ _EVT_SESSION_STARTED = 150
 _EVT_SESSION_CANCELED = 151
 _EVT_SESSION_FINISHED = 152
 _EVT_SESSION_FAILED = 153
+_EVT_USAGE_RESPONSE = 154
+_EVT_AUDIO_MUTED = 250
 _EVT_TTS_SENTENCE_START = 350
 _EVT_TTS_SENTENCE_END = 351
 _EVT_TTS_RESPONSE = 352  # audio data
-_EVT_TTS_SUBTITLE = 353
+_EVT_TTS_ENDED = 359
+_EVT_TTS_SUBTITLE = 364
 
 # Message types (high nibble of byte 1)
 _MSG_FULL_CLIENT_REQ = 0x1
@@ -800,10 +803,14 @@ class SynthesizeStream(tts.SynthesizeStream):
                         break
 
                     elif frame.event in (
+                        _EVT_USAGE_RESPONSE,
+                        _EVT_AUDIO_MUTED,
                         _EVT_TTS_SENTENCE_START,
                         _EVT_TTS_SENTENCE_END,
+                        _EVT_TTS_ENDED,
+                        _EVT_TTS_SUBTITLE,
                     ):
-                        pass  # server-side sentence boundaries, no action needed
+                        pass  # non-audio events are not surfaced through LiveKit TTS yet
 
                     elif frame.msg_type == _MSG_ERROR:
                         error_msg = (

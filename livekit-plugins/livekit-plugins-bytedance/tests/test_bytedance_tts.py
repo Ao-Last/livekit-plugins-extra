@@ -21,6 +21,7 @@ import pytest
 from livekit.agents import APIConnectOptions, APIStatusError
 from livekit.plugins.bytedance import TTS, VolcengineV3TTS
 from livekit.plugins.bytedance.tts import (
+    _EVT_AUDIO_MUTED,
     _EVT_CONNECTION_STARTED,
     _EVT_SESSION_FAILED,
     _EVT_SESSION_FINISHED,
@@ -28,7 +29,10 @@ from livekit.plugins.bytedance.tts import (
     _EVT_START_CONNECTION,
     _EVT_START_SESSION,
     _EVT_TASK_REQUEST,
+    _EVT_TTS_ENDED,
     _EVT_TTS_RESPONSE,
+    _EVT_TTS_SUBTITLE,
+    _EVT_USAGE_RESPONSE,
     _is_retryable_code,
     _parse_session_meta,
     _parse_v3_frame,
@@ -271,6 +275,14 @@ def _extract_start_session_payload(frame: bytes) -> dict[str, Any]:
 class TestProtocolHelpers:
     def test_tts_alias_exports_volcengine_v3_tts(self) -> None:
         assert TTS is VolcengineV3TTS
+
+    def test_reference_protocol_event_codes(self) -> None:
+        # Matches ByteDance's "TTS Websocket Bidirection protocols" helper.
+        assert _EVT_USAGE_RESPONSE == 154
+        assert _EVT_AUDIO_MUTED == 250
+        assert _EVT_TTS_RESPONSE == 352
+        assert _EVT_TTS_ENDED == 359
+        assert _EVT_TTS_SUBTITLE == 364
 
     def test_is_retryable_code_client_error_not_retryable(self) -> None:
         assert _is_retryable_code(45000000) is False
