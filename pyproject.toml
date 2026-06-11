@@ -2,10 +2,11 @@
 name = "livekit-plugins-extra"
 version = "0.1.0"
 requires-python = ">=3.10"
-dependencies = ["livekit-plugins-boson"]
+dependencies = ["livekit-plugins-boson", "livekit-plugins-bytedance"]
 
 [tool.uv.sources]
 livekit-plugins-boson = { workspace = true }
+livekit-plugins-bytedance = { workspace = true }
 
 [tool.uv.workspace]
 members = ["livekit-plugins/*"]

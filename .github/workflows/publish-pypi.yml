@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - livekit-plugins-boson
+          - livekit-plugins-bytedance
         default: livekit-plugins-boson
 
 permissions:

@@ -10,6 +10,7 @@ resolution-markers = [
 [manifest]
 members = [
     "livekit-plugins-boson",
+    "livekit-plugins-bytedance",
     "livekit-plugins-extra",
 ]
 
@@ -1035,11 +1036,26 @@ requires-dist = [
 ]
 
 [[package]]
+name = "livekit-plugins-bytedance"
+source = { editable = "livekit-plugins/livekit-plugins-bytedance" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "livekit-agents" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiohttp", specifier = "~=3.10" },
+    { name = "livekit-agents", specifier = ">=1.5.0,<2" },
+]
+
+[[package]]
 name = "livekit-plugins-extra"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "livekit-plugins-boson" },
+    { name = "livekit-plugins-bytedance" },
 ]
 
 [package.dev-dependencies]
@@ -1050,7 +1066,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "livekit-plugins-boson", editable = "livekit-plugins/livekit-plugins-boson" }]
+requires-dist = [
+    { name = "livekit-plugins-boson", editable = "livekit-plugins/livekit-plugins-boson" },
+    { name = "livekit-plugins-bytedance", editable = "livekit-plugins/livekit-plugins-bytedance" },
+]
 
 [package.metadata.requires-dev]
 dev = [
