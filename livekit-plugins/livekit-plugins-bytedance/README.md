@@ -18,16 +18,19 @@ only implements:
 | Service | API | LiveKit class | Status |
 | --- | --- | --- | --- |
 | Volcengine TTS V3 bidirectional streaming | `wss://openspeech.bytedance.com/api/v3/tts/bidirection` | `livekit.plugins.bytedance.TTS` | Supported |
+| Volcengine BigModel streaming ASR, optimized bidirectional mode | `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async` | `livekit.plugins.bytedance.STT` | Supported |
 
-The implemented TTS client follows Volcengine's TTS V3 bidirectional streaming
-protocol as documented at:
+The implemented clients follow these Volcengine WebSocket APIs:
 
 - Volcengine TTS V3 bidirectional API: <https://www.volcengine.com/docs/6561/1329505>
+- Volcengine BigModel ASR WebSocket API, optimized bidirectional streaming
+  endpoint: `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async`
 
-The support contract is the WebSocket API whose request path is:
+The supported WebSocket request paths are:
 
 ```text
 wss://openspeech.bytedance.com/api/v3/tts/bidirection
+wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
 ```
 
 ## Explicitly Not Supported Yet
@@ -35,7 +38,10 @@ wss://openspeech.bytedance.com/api/v3/tts/bidirection
 This package does not currently implement:
 
 - Volcengine legacy TTS v1 (`/api/v1/tts/ws_binary`)
-- Volcengine STT or BigModelSTT
+- Volcengine ASR batch/offline APIs
+- Volcengine ASR `bigmodel_nostream` streaming-input mode
+- Volcengine ASR legacy non-optimized bidirectional path
+  (`/api/v3/sauc/bigmodel`)
 - Doubao/Ark LLM APIs
 - Volcengine realtime dialogue APIs
 - ByteDance video, image, embedding, or moderation APIs
@@ -86,6 +92,31 @@ Subtitle and usage payloads can be requested from Volcengine, but this LiveKit
 TTS plugin currently exposes only synthesized audio frames through the LiveKit
 TTS stream.
 
+## Supported STT Features
+
+- Streaming recognition through `STT.stream()`
+- Volcengine BigModel ASR WebSocket binary protocol v3
+- Optimized bidirectional streaming endpoint:
+  `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async`
+- `X-Api-Key` authentication for the current Volcengine console
+- Legacy console authentication through `X-Api-App-Key` and `X-Api-Access-Key`
+- `X-Api-Resource-Id`, `X-Api-Request-Id`, `X-Api-Sequence`, and
+  `X-Api-Connect-Id` headers
+- Default ASR 2.0 resource ID: `volc.seedasr.sauc.duration`
+- PCM input at 16 kHz, 16-bit, mono
+- Server-side VAD/final segmentation through `enable_nonstream=True`
+- Interim and final LiveKit transcript events
+- Word timestamps when Volcengine returns `utterances[*].words`
+- Selected BigModel request options, including `enable_itn`, `enable_punc`,
+  `enable_ddc`, `show_utterances`, `enable_speaker_info`, `ssd_version`,
+  `result_type`, VAD timing options, sensitive-word filtering, and `corpus`
+- Escape hatches through `audio_options` and `request_options` for provider
+  fields that are not first-class constructor arguments yet
+
+The plugin does not send the ASR `audio.language` field by default because the
+provider document scopes that field to the `bigmodel_nostream` endpoint, which
+this package does not currently support.
+
 The plugin sends credentials with Volcengine's V3 websocket headers:
 
 - `X-Api-Key`
@@ -128,6 +159,8 @@ Suggested variable names:
 ```bash
 export VOLCENGINE_TTS_V3_API_KEY=...
 export VOLCENGINE_TTS_V3_RESOURCE_ID=seed-tts-2.0
+export VOLCENGINE_ASR_API_KEY=...
+export VOLCENGINE_ASR_RESOURCE_ID=volc.seedasr.sauc.duration
 ```
 
 The API also supports old-console authentication. If you still use those
@@ -178,6 +211,25 @@ tts = VolcengineV3TTS(
 )
 ```
 
+Use streaming ASR:
+
+```python
+from livekit.plugins import bytedance
+
+stt = bytedance.STT(
+    api_key="your-api-key",
+    resource_id="volc.seedasr.sauc.duration",
+)
+
+stream = stt.stream()
+stream.push_frame(audio_frame)
+stream.end_input()
+
+async for event in stream:
+    if event.type == "final_transcript":
+        print(event.alternatives[0].text)
+```
+
 ## Testing
 
 Run the default suite:
@@ -187,15 +239,17 @@ uv run pytest livekit-plugins/livekit-plugins-bytedance
 ```
 
 The default tests are hermetic and do not require Volcengine credentials. They
-cover the V3 binary protocol, websocket handshake headers, retry behavior,
-zombie websocket handling, server error classification, and partial audio drain
-behavior.
+cover the TTS V3 binary protocol, ASR WebSocket v3 binary protocol, websocket
+handshake headers, retry behavior, zombie websocket handling, server error
+classification, partial audio drain behavior, and ASR transcript event mapping.
 
 Real end-to-end tests should use a separate marker and require:
 
 ```bash
 export VOLCENGINE_TTS_V3_API_KEY=...
 export VOLCENGINE_TTS_V3_RESOURCE_ID=seed-tts-2.0
+export VOLCENGINE_ASR_API_KEY=...
+export VOLCENGINE_ASR_RESOURCE_ID=volc.seedasr.sauc.duration
 ```
 
 ## License

@@ -1,15 +1,24 @@
 """ByteDance and Volcengine plugin for LiveKit Agents.
 
-Currently supports Volcengine TTS V3 bidirectional streaming.
+Currently supports Volcengine TTS V3 bidirectional streaming and BigModel
+streaming ASR.
 """
 
 from livekit.agents import Plugin
 
 from .log import logger
+from .stt import STT, SpeechStream
 from .tts import TTS, SynthesizeStream, VolcengineV3TTS
 from .version import __version__
 
-__all__ = ["TTS", "VolcengineV3TTS", "SynthesizeStream", "__version__"]
+__all__ = [
+    "STT",
+    "SpeechStream",
+    "TTS",
+    "VolcengineV3TTS",
+    "SynthesizeStream",
+    "__version__",
+]
 
 
 class BytedancePlugin(Plugin):

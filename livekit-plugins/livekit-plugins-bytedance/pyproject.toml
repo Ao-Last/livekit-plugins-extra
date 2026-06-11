@@ -10,7 +10,18 @@ readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
 authors = [{ name = "Ao-Last" }]
-keywords = ["voice", "ai", "realtime", "audio", "livekit", "bytedance", "volcengine", "tts"]
+keywords = [
+    "voice",
+    "ai",
+    "realtime",
+    "audio",
+    "livekit",
+    "bytedance",
+    "volcengine",
+    "tts",
+    "stt",
+    "asr",
+]
 classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
