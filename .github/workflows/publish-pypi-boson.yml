@@ -1,24 +1,16 @@
-name: publish-pypi
+name: publish-pypi-boson
 
 on:
   workflow_dispatch:
-    inputs:
-      package:
-        description: Package to publish
-        required: true
-        type: choice
-        options:
-          - livekit-plugins-boson
-        default: livekit-plugins-boson
 
 permissions:
   contents: read
 
 jobs:
   publish:
-    name: publish ${{ inputs.package }}
+    name: publish livekit-plugins-boson
     runs-on: ubuntu-latest
-    environment: pypi
+    environment: pypi-boson
     permissions:
       contents: read
       id-token: write
@@ -36,7 +28,7 @@ jobs:
           python-version: "3.12"
 
       - name: Build package
-        run: uv build --package "${{ inputs.package }}" --no-sources
+        run: uv build --package livekit-plugins-boson --no-sources
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

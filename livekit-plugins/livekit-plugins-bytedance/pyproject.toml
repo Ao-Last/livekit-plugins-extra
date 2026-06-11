@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "livekit-plugins-bytedance"
+dynamic = ["version"]
+description = "LiveKit Agents plugin for ByteDance and Volcengine AI services."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+authors = [{ name = "Ao-Last" }]
+keywords = [
+    "voice",
+    "ai",
+    "realtime",
+    "audio",
+    "livekit",
+    "bytedance",
+    "volcengine",
+    "tts",
+    "stt",
+    "asr",
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3 :: Only",
+]
+dependencies = [
+    "aiohttp~=3.10",
+    "livekit-agents>=1.5.0,<2",
+]
+
+[project.urls]
+Documentation = "https://www.volcengine.com/docs/6561/1329505"
+Source = "https://github.com/Ao-Last/livekit-plugins-extra"
+Issues = "https://github.com/Ao-Last/livekit-plugins-extra/issues"
+
+[tool.hatch.version]
+path = "livekit/plugins/bytedance/version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["livekit"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/livekit"]
+
+[tool.uv]
+exclude-newer = "7 days"
