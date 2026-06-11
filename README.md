@@ -34,6 +34,18 @@ Run tests:
 uv run pytest
 ```
 
+Run only the real provider end-to-end tests:
+
+```bash
+export BOSON_API_KEY=...
+uv run pytest -m e2e
+```
+
+Real e2e tests are skipped when `BOSON_API_KEY` is not set. In GitHub Actions,
+run the `e2e` workflow manually from the Actions tab; it reads `BOSON_API_KEY`
+from the repository secrets and uploads generated WAV files as the
+`boson-e2e-audio` artifact.
+
 Run formatting and linting:
 
 ```bash
