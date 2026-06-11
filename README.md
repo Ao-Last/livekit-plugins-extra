@@ -183,30 +183,16 @@ asset before enabling ASR e2e in CI.
 ## Publishing
 
 Packages are published to PyPI through GitHub Actions Trusted Publishing. The
-current publisher configuration for `livekit-plugins-boson` is:
+publisher configuration should be one workflow per PyPI package:
 
-```text
-Owner: Ao-Last
-Repository: livekit-plugins-extra
-Workflow: publish-pypi.yml
-Environment: pypi
-```
-
-The current `publish-pypi.yml` workflow accepts a package choice and can publish
-either workspace package. That works if each PyPI project trusts the same
-workflow and environment, but it is broader than necessary. Before publishing
-additional packages, prefer a per-package publishing workflow:
-
-| Package | Workflow | Environment |
-| --- | --- | --- |
-| `livekit-plugins-boson` | `publish-boson-pypi.yml` | `pypi-boson` |
-| `livekit-plugins-bytedance` | `publish-bytedance-pypi.yml` | `pypi-bytedance` |
+| Package | PyPI owner/repo | Workflow filename | GitHub environment |
+| --- | --- | --- | --- |
+| `livekit-plugins-boson` | `Ao-Last/livekit-plugins-extra` | `publish-pypi-boson.yml` | `pypi-boson` |
+| `livekit-plugins-bytedance` | `Ao-Last/livekit-plugins-extra` | `publish-pypi-bytedance.yml` | `pypi-bytedance` |
 
 This keeps PyPI Trusted Publishing scoped to one package at a time, gives each
 package its own approval/history surface, and avoids accidentally publishing
-the wrong package through a workflow input. Do not rename or remove the current
-workflow for an already-configured PyPI project until that project's Trusted
-Publisher settings have been migrated.
+the wrong package through a workflow input.
 
 To publish a new version:
 
@@ -216,8 +202,7 @@ To publish a new version:
 2. Run the local checks and the real e2e test.
 3. Push to `main`.
 4. Run the package-specific publish workflow manually from the GitHub Actions
-   tab. If the repo is still using the generic `publish-pypi` workflow, choose
-   the package to publish carefully.
+   tab.
 
 PyPI versions are immutable. If `0.1.0` is already published, the next upload
 must use a new version such as `0.1.1` or `0.2.0`.
